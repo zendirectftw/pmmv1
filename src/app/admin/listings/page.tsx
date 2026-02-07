@@ -15,7 +15,7 @@ export default async function AdminListingsPage() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">Manage Listings</h1>
       <div className="grid gap-6">
-        {listings.map((listing) => {
+        {listings.map((listing: any) => {
           // Fix: Ensure priceUsd is treated as a number for the chart
           const price = Number(listing.priceUsd);
           const history = [
@@ -29,7 +29,9 @@ export default async function AdminListingsPage() {
               <div className="flex justify-between mb-4">
                 <div>
                   <h3 className="font-semibold">{listing.title}</h3>
-                  <p className="text-sm text-[var(--muted)]">Seller: {listing.seller.name || listing.seller.email}</p>
+                  <p className="text-sm text-[var(--muted)]">
+                    Seller: {listing.seller?.name || listing.seller?.email || 'Unknown'}
+                  </p>
                 </div>
                 <p className="font-bold text-lg">${price.toLocaleString()}</p>
               </div>
