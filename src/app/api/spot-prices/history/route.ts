@@ -1,20 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { NextResponse } from "next/server";
 
-// Returns historical spot prices for chart. In production, backfill from metals API.
-export async function GET(req: NextRequest) {
-  const metal = req.nextUrl.searchParams.get("metal");
-  if (!metal || !["GOLD", "SILVER", "PLATINUM", "PALLADIUM"].includes(metal)) {
-    return NextResponse.json([]);
+export async function GET() {
+  try {
+    const rows = await prisma.spotPrice.findMany({
+      orderBy: { fetchedAt: "desc" },
+      take: 30,
+    });
+
+    // FIXED: Added ': any' to the parameter 'r'
+    const data = rows.map((r: any) => ({
+      date: r.fetchedAt.toISOString().slice(0, 10),
+      price: Number(r.priceUsd),
+    }));
+
+    // Reverse so the chart goes from oldest to newest
+    return NextResponse.json(data.reverse());
+  } catch (error) {
+    console.error("Price history error:", error);
+    return NextResponse.json({ error: "Failed to fetch price history" }, { status: 500 });
   }
-  const rows = await prisma.spotPrice.findMany({
-    where: { metal: metal as "GOLD" | "SILVER" | "PLATINUM" | "PALLADIUM", currency: "USD" },
-    orderBy: { fetchedAt: "asc" },
-    take: 30,
-  });
-  const data = rows.map((r) => ({
-    date: r.fetchedAt.toISOString().slice(0, 10),
-    price: Number(r.priceUsd),
-  }));
-  return NextResponse.json(data);
 }
