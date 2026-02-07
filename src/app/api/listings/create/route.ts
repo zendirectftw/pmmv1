@@ -3,15 +3,13 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth-utils";
 import { prisma } from "@/lib/db";
 
-// Removed the strict imports from @prisma/client that were failing the build
-
 const createSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().min(1),
   priceUsd: z.number().positive(),
   weightOz: z.number().positive(),
-  metal: z.string(), // Changed from MetalType to string
-  condition: z.string(), // Changed from ListingCondition to string
+  metal: z.string(),
+  condition: z.string(),
   category: z.string(),
   images: z.array(z.string()).min(1),
   purity: z.string().optional(),
@@ -22,6 +20,7 @@ const createSchema = z.object({
 export async function POST(request: Request) {
   try {
     const user = await requireRole(["USER", "ADMIN"]);
+    
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -32,7 +31,7 @@ export async function POST(request: Request) {
     const listing = await prisma.listing.create({
       data: {
         ...body,
-        sellerId: (user as any).id, // FIXED: Added 'as any' to bypass type check
+        sellerId: (user as any).id,
         status: "ACTIVE",
       },
     });
@@ -43,15 +42,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
     console.error("Listing creation error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
-}
-
-    return NextResponse.json(listing);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
