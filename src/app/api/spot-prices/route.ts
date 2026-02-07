@@ -1,15 +1,23 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { NextResponse } from "next/server";
 
-// Returns latest cached spot price per metal. In production, populate via cron from Metals API.
 export async function GET() {
-  const prices = await prisma.spotPrice.findMany({
-    where: { currency: "USD" },
-    orderBy: { fetchedAt: "desc" },
-    distinct: ["metal"],
-  });
-  const byMetal = Object.fromEntries(
-    prices.map((p) => [p.metal, { priceUsd: Number(p.priceUsd), fetchedAt: p.fetchedAt }])
-  );
-  return NextResponse.json(byMetal);
+  try {
+    const prices = await prisma.spotPrice.findMany({
+      orderBy: { fetchedAt: "desc" },
+    });
+
+    const byMetal = Object.fromEntries(
+      // FIXED: Added ': any' to the parameter 'p'
+      prices.map((p: any) => [
+        p.metal, 
+        { priceUsd: Number(p.priceUsd), fetchedAt: p.fetchedAt }
+      ])
+    );
+
+    return NextResponse.json(byMetal);
+  } catch (error) {
+    console.error("Spot prices fetch error:", error);
+    return NextResponse.json({ error: "Failed to fetch current prices" }, { status: 500 });
+  }
 }
