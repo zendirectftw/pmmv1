@@ -1,0 +1,31 @@
+// proxy.ts
+import { withAuth } from "next-auth/middleware";
+
+export const proxy = withAuth({
+  callbacks: {
+    authorized: ({ token, req }) => {
+      const { pathname } = req.nextUrl;
+      
+      // 1. ALWAYS allow these essential "Public & Auth" paths
+      if (
+        pathname === "/" ||              // Homepage
+        pathname.startsWith("/auth") ||  // Sign-in / Sign-up pages
+        pathname.startsWith("/api/auth") // Critical Auth API routes
+      ) {
+        return true; 
+      }
+
+      // 2. PROTECT everything else (Dashboard, Admin, etc.)
+      // This requires the user to have a token (be logged in)
+      return !!token;
+    },
+  },
+  pages: {
+    signIn: "/auth/signin",
+  },
+});
+
+export const config = {
+  // Broad matcher is fine, authorized() logic above handles the filtering
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
