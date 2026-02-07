@@ -37,9 +37,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(listing);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      // .flatten() is the safest way to get error messages in TypeScript
+      return NextResponse.json({ error: error.flatten() }, { status: 400 });
     }
     console.error("Listing creation error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
