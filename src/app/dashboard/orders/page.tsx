@@ -25,7 +25,7 @@ export default async function UserOrdersPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // FIXED: Added ': any' to satisfy the TypeScript compiler
+  // Loop 1 Fixed
   const serialized = orders.map((o: any) => ({
     id: o.id,
     listing: {
@@ -47,12 +47,13 @@ export default async function UserOrdersPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {serialized.map((order) => (
+          {/* Loop 2 Fixed: Added : any here */}
+          {serialized.map((order: any) => (
             <div key={order.id} className="p-4 border rounded-xl bg-[var(--card)] flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 relative rounded-lg overflow-hidden border">
                   <Image 
-                    src={order.listing.images[0] || "/placeholder.png"} 
+                    src={order.listing.images?.[0] || "/placeholder.png"} 
                     alt="Listing" 
                     fill 
                     className="object-cover" 
