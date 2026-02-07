@@ -1,47 +1,80 @@
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth-utils";
 import { prisma } from "@/lib/db";
-import { OrdersList } from "@/components/dashboard/OrdersList";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import Image from "next/image";
 
-export default async function DashboardOrdersPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/auth/signin");
-  const userId = (session.user as { id?: string }).id;
-  if (!userId) redirect("/auth/signin");
+export default async function UserOrdersPage() {
+  const session = await getServerSession();
+
+  if (!session?.user?.email) {
+    redirect("/auth/signin");
+  }
 
   const orders = await prisma.order.findMany({
-    where: { OR: [{ buyerId: userId }, { sellerId: userId }] },
+    where: {
+      OR: [
+        { buyer: { email: session.user.email } },
+        { seller: { email: session.user.email } },
+      ],
+    },
     include: {
-      listing: { select: { id: true, title: true, metal: true, weightOz: true, images: true, priceUsd: true } },
-      seller: { select: { id: true, name: true } },
-      buyer: { select: { id: true, name: true } },
+      listing: true,
+      seller: true,
+      buyer: true,
     },
     orderBy: { createdAt: "desc" },
   });
 
-  const serialized = orders.map((o) => ({
+  // FIXED: Added ': any' to satisfy the TypeScript compiler
+  const serialized = orders.map((o: any) => ({
     id: o.id,
     listing: {
       ...o.listing,
       priceUsd: Number(o.listing.priceUsd),
-      weightOz: Number(o.listing.weightOz),
     },
-    quantity: o.quantity,
-    totalAmountCents: o.totalAmountCents,
     status: o.status,
-    trackingNumber: o.trackingNumber,
-    trackingCarrier: o.trackingCarrier,
-    shippedAt: o.shippedAt,
     createdAt: o.createdAt,
-    role: o.buyerId === userId ? "buyer" : "seller",
-    otherParty: o.buyerId === userId ? o.seller : o.buyer,
+    isBuyer: o.buyer.email === session.user?.email,
   }));
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-[var(--foreground)]">Orders</h1>
-      <p className="text-[var(--muted)] mt-1">View and manage your orders</p>
-      <OrdersList orders={serialized} />
+    <div className="p-6">
+      <h1 className="text-2xl font-semibold mb-6">My Orders</h1>
+      
+      {serialized.length === 0 ? (
+        <div className="text-center p-12 border border-dashed rounded-2xl">
+          <p className="text-[var(--muted)]">No orders found.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {serialized.map((order) => (
+            <div key={order.id} className="p-4 border rounded-xl bg-[var(--card)] flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 relative rounded-lg overflow-hidden border">
+                  <Image 
+                    src={order.listing.images[0] || "/placeholder.png"} 
+                    alt="Listing" 
+                    fill 
+                    className="object-cover" 
+                  />
+                </div>
+                <div>
+                  <p className="font-medium">{order.listing.title}</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {order.isBuyer ? "Purchased from" : "Sold to"} · {new Date(order.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="font-bold">${order.listing.priceUsd.toLocaleString()}</p>
+                <span className="text-xs px-2 py-1 rounded-full bg-[var(--muted)]/10">
+                  {order.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
