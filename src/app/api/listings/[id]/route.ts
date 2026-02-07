@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/db";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> } // FIXED: params is now a Promise
 ) {
-  const { id } = await params;
+  // We must await params before accessing properties
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
 
   const listing = await prisma.listing.findUnique({
     where: { id },
@@ -22,7 +24,6 @@ export async function GET(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // FIXED: Explicitly typed 'a' and 'r' to bypass the build error
   const avgRating =
     listing.seller.reviewsReceived.length > 0
       ? listing.seller.reviewsReceived.reduce((a: number, r: any) => a + r.rating, 0) /
