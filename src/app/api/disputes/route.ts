@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth-utils"; // FIXED: Name change
+import { requireRole } from "@/lib/auth-utils";
 import { prisma } from "@/lib/db";
 
 const createSchema = z.object({
@@ -42,9 +42,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(dispute);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      // FIXED: Using .flatten() to satisfy the TypeScript compiler
+      return NextResponse.json({ error: error.flatten() }, { status: 400 });
     }
     console.error("Dispute creation error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
