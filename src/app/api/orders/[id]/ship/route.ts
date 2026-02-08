@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth-utils"; // FIXED: Changed from requireAuth
+import { requireRole } from "@/lib/auth-utils";
 import { prisma } from "@/lib/db";
 
 const shipSchema = z.object({
@@ -10,13 +10,12 @@ const shipSchema = z.object({
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } // FIXED: params is a Promise
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const resolvedParams = await params;
     const { id } = resolvedParams;
 
-    // Check if user is logged in
     const user = await requireRole(["USER", "ADMIN"]);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -27,14 +26,12 @@ export async function POST(
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { listing: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Only the seller can mark as shipped
     if (order.sellerId !== (user as any).id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -50,9 +47,10 @@ export async function POST(
     });
 
     return NextResponse.json(updatedOrder);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      // FIXED: Swapped .errors for .flatten()
+      return NextResponse.json({ error: error.flatten() }, { status: 400 });
     }
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
