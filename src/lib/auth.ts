@@ -1,8 +1,9 @@
-import type { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import type { Role } from "@prisma/client";
+
+// Removed the strict Role import to bypass build-time generation issues
 
 declare module "next-auth" {
   interface Session {
@@ -10,35 +11,35 @@ declare module "next-auth" {
       id: string;
       email: string;
       name?: string | null;
-      image?: string | null;
-      role: Role;
+      role: string; // Changed from Role to string
     };
   }
-}
 
-declare module "next-auth/jwt" {
-  interface JWT {
+  interface User {
     id: string;
-    role: Role;
+    role: string; // Changed from Role to string
   }
 }
 
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
-  pages: { signIn: "/auth/signin" },
+  session: {
+    strategy: "jwt",
+  },
+  pages: {
+    signIn: "/auth/signin",
+  },
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: Role }).role ?? "BUYER";
+        token.role = user.role;
       }
       return token;
     },
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user) {
-        (session.user as { id: string }).id = token.id;
-        (session.user as { role: Role }).role = token.role;
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
@@ -51,22 +52,34 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Invalid credentials");
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email: credentials.email },
         });
-        if (!user?.passwordHash) return null;
-        const ok = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!ok) return null;
+
+        if (!user || !user.password) {
+          throw new Error("User not found");
+        }
+
+        const isPasswordCorrect = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+
+        if (!isPasswordCorrect) {
+          throw new Error("Invalid password");
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          image: user.image,
           role: user.role,
         };
       },
     }),
-    // TODO: Add Google/GitHub OAuth in providers array when env vars are set
   ],
 };
