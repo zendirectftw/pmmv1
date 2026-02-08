@@ -1,17 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
-    // your project has type errors.
-    // !! WARN !!
+    // This allows the build to finish even if there are type errors
     ignoreBuildErrors: true,
   },
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
+    // This allows the build to finish even if there are linting warnings
     ignoreDuringBuilds: true,
   },
+  // This is often needed for NextAuth + Prisma on Vercel
+  serverExternalPackages: ["@prisma/client", "bcryptjs"],
 };
 
 export default nextConfig;
